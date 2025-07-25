@@ -14,3 +14,4 @@ def loadData(s):
 df=sns.load_dataset("titanic")
 # print(df.head())
 sns.scatterplot( x="age", y="fare",data=df)
+plt.title("Age vs Fare")
