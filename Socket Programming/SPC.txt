@@ -1,0 +1,1426 @@
+3.1 Example Program to Send and Receive a Message using Connectionless Sockets 
+ 
+The datagram receiver (datagramReceiver.java) program illustrated below can receive a 
+datagram packet of size at most 40 bytes. As explained before, the receive( ) method call on the  
+
+# datagramReceiver.py
+import socket
+
+# Create UDP socket bound at port 5000
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+sock.bind(("127.0.0.1", 5000))
+
+print("Receiver ready, waiting for datagram...")
+
+# Max size = 40 bytes
+data, addr = sock.recvfrom(40)
+
+print("Message received:", data.decode())
+print("From:", addr)
+
+sock.close()
+
+# datagramSender.py
+import socket
+
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+message = "Hello Receiver!"
+sock.sendto(message.encode(), ("127.0.0.1", 5000))
+
+print("Message sent.")
+
+sock.close()
+
+3.2 Example Program to Send and Receive a Message in both Directions (Duplex 
+Communication) using Connectionless Sockets 
+ 
+The program illustrated in this example is an extension of the program in Section 3.1. Here, we 
+describe two programs – datagramSenderReceiver.java (refer Figure 7) and 
+datagramReceiverSender.java (refer Figure 8). The sender-receiver program will first send a 
+message and then wait for a response for the message. Accordingly, the first half of the sender
+receiver program would be to send a message and the second half of the program would be to 
+receive a response. Note that to get the response, the sender-receiver program should invoke the 
+receive( ) method on the same DatagramSocket object and port number that were used to send 
+the message. The receiver-sender program will have to first receive the message and then 
+respond to the sender of the message. It extracts the sender information from the Datagram 
+Packet object received and uses the sender IP address and port number retrieved from the 
+Datagram Packet received as the destination IP address and port number for the response 
+Datagram Packet sent. This is analogous to replying to a mail or an email using the sender 
+information in the mail (i.e., reply to the same address from which the message was sent). The 
+above logic could be used to develop chatting programs using connectionless sockets. The 
+maximum size of the messages that could be sent and received is 60 bytes in this example.  
+
+# datagramSenderReceiver.py
+import socket
+
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+# ------------- SEND PART -------------
+msg = "Hello Receiver-Sender!"
+sock.sendto(msg.encode(), ("127.0.0.1", 6000))
+print("Message sent. Waiting for reply...")
+
+# ------------- RECEIVE PART -------------
+data, addr = sock.recvfrom(60)   # max 60 bytes
+print("Reply received:", data.decode())
+
+sock.close()
+# datagramReceiverSender.py
+import socket
+
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+sock.bind(("127.0.0.1", 6000))
+
+print("Receiver-Sender waiting for message...")
+
+# -------- RECEIVE MESSAGE --------
+data, addr = sock.recvfrom(60)   # max 60 bytes
+print("Message received:", data.decode())
+print("From:", addr)
+
+# -------- SEND REPLY BACK --------
+reply = "Hello back to sender!"
+sock.sendto(reply.encode(), addr)
+
+print("Reply sent.")
+
+sock.close()
+
+4.1 Example Program to Send a Message from Server to Client when Contacted 
+ 
+Here, the connectionServer.java program creates a ServerSocket object bound to port 3456 and 
+waits for an incoming client connection request. When a client contacts the server program, the 
+accept( ) method is unblocked and returns a Socket object for the server to communicate with the 
+particular client that contacted. The server program then creates a PrintStream object through the 
+output stream extracted from this socket and uses it to send a welcome message to the contacting 
+client. The client program runs as follows: The client creates a Socket object to connect to the 
+server running at the specified IP address or hostname and at the port number 3456. The client 
+creates a BufferedReader object through the input stream extracted from this socket and waits for 
+an incoming line of message from the other end. The readLine( ) method of the BufferedReader 
+object blocks the client from proceeding further unless a line of message is received. The 
+purpose of the flush( ) method of the PrintStream class is to write any buffered output bytes to 
+the underlying output stream and then flush that stream to send out the bytes. Note that the server 
+program in our example sends a welcome message to an incoming client request and then stops.  
+#server
+import socket
+
+HOST = "0.0.0.0"
+PORT = 3456
+
+server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server.bind((HOST, PORT))
+server.listen(1)
+
+print("Server waiting for a client...")
+
+client_socket, client_addr = server.accept()
+print("Client connected:", client_addr)
+
+welcome_msg = "Welcome! You have successfully connected to the server.\n"
+client_socket.sendall(welcome_msg.encode())
+
+client_socket.close()
+server.close()
+
+#client
+import socket
+
+server_ip = "127.0.0.1"
+PORT = 3456
+
+client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+client.connect((server_ip, PORT))
+
+data = client.recv(1024).decode()
+print("Message from server:", data)
+
+client.close()
+
+
+4.2 Example Program to Illustrate Duplex Nature of Stream-mode Socket Connections 
+ 
+This program is an extension of the program illustrated in Section 4.1. Here, we illustrate that the 
+communication using stream-mode sockets could occur in both directions. When the client 
+receives a response for its connection request from the server, the client responds back with an 
+acknowledgement that the server response was received. The server waits to receive such a 
+response from the client. All of these communication occur using the Socket object returned by 
+the accept( ) method call on the ServerSocket object at the server side and using the Socket 
+object originally created by the client program to connect to the server. It is always 
+recommended to close the Socket objects at both sides after their use. Even though server 
+programs typically run without being stopped, our example server program terminates after one 
+duplex communication with the client. Before the server program terminates, the ServerSocket 
+object should be closed.  
+#server
+import socket
+
+HOST = "0.0.0.0"
+PORT = 3456
+
+server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server.bind((HOST, PORT))
+server.listen(1)
+
+print("Server waiting for client...")
+
+client_socket, client_addr = server.accept()
+print("Client connected:", client_addr)
+
+# Send greeting to client
+client_socket.sendall("Hello Client, connection established!\n".encode())
+
+# Wait for client reply
+reply = client_socket.recv(1024).decode()
+print("Client replied:", reply)
+
+client_socket.close()
+server.close()
+
+#client
+import socket
+
+server_ip = "127.0.0.1"
+PORT = 3456
+
+client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+client.connect((server_ip, PORT))
+
+# Receive message from server
+msg = client.recv(1024).decode()
+print("Server:", msg)
+
+# Reply back
+client.sendall("Thank you Server. I received your message!\n".encode())
+
+client.close()
+
+
+4.3 Example Program to Illustrate the Server can Run in Infinite Loop handling Multiple 
+Client Requests, one at a time 
+ 
+In this example, we illustrate a server program (an iterative server) that can service multiple 
+clients, though, one at a time. The server waits for incoming client requests. When a connection 
+request is received, the accept ( ) method returns a Socket object that will be used to handle all 
+the communication with the client. During this time, if any connection requests from any other 
+client reach the server, these requests have to wait before the server has completed its 
+communication with the current client. To stop a server program that runs in an infinite loop, we 
+press Ctrl+C. This terminates the program as well as closes the ServerSocket object.
+
+#loopServer
+import socket
+
+HOST = "0.0.0.0"
+PORT = 3456
+
+server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server.bind((HOST, PORT))
+server.listen(5)
+
+print("Server running... Press Ctrl+C to stop.")
+
+try:
+    while True:
+        client_socket, client_addr = server.accept()
+        print("Connected to:", client_addr)
+
+        client_socket.sendall("Hello! You are connected to the iterative server.\n".encode())
+
+        # Receive something optional
+        data = client_socket.recv(1024).decode()
+        print("Client says:", data)
+
+        client_socket.close()
+        print("Client handled. Waiting for next...")
+except KeyboardInterrupt:
+    print("\nServer shutting down...")
+    server.close()
+
+#loopClient
+import socket
+
+server_ip = "127.0.0.1"
+PORT = 3456
+
+client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+client.connect((server_ip, PORT))
+
+msg = client.recv(1024).decode()
+print("Server:", msg)
+
+client.sendall("Thanks Server!".encode())
+client.close()
+
+
+4.4 Example Program to Send Objects of User-defined Classes using Stream-mode Sockets 
+In this example, we illustrate how objects of user-defined classes could be sent using stream
+mode sockets. An important requirement of classes whose objects needs to be transmitted across 
+sockets is that these classes should implement the Serializable interface defined in the java.io. 
+package. Figure 19 shows the code for an Employee class (that has three member variables – ID, 
+Name and Salary), implementing the Serializable interface. An object of the Employee class, 
+with all the member variables set by obtaining inputs from the user, is being sent by the client 
+program (code in Figure 20) to a server program (code in Figure 21) that extracts the object from 
+the socket and prints the values of its member variables. To write an object to a socket, we use 
+the ObjectOutputStream and to extract an object from a socket, we use the ObjectInputStream.
+#employee
+class Employee:
+    def __init__(self, emp_id, name, salary):
+        self.emp_id = emp_id
+        self.name = name
+        self.salary = salary
+#objectServer
+import socket, pickle
+
+HOST = "0.0.0.0"
+PORT = 5000
+
+server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server.bind((HOST, PORT))
+server.listen(1)
+
+print("Server waiting...")
+
+client_socket, client_addr = server.accept()
+print("Client connected:", client_addr)
+
+data = client_socket.recv(4096)
+emp = pickle.loads(data)
+
+print("Employee Received:")
+print("ID:", emp.emp_id)
+print("Name:", emp.name)
+print("Salary:", emp.salary)
+
+client_socket.close()
+server.close()
+#objectClient
+import socket, pickle
+from employee import Employee
+
+server_ip = "127.0.0.1"
+PORT = 5000
+
+emp = Employee(101, "Alice", 45000)
+
+data = pickle.dumps(emp)
+
+client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+client.connect((server_ip, PORT))
+
+client.sendall(data)
+client.close()
+
+
+4.5 Example Program to Illustrate Sending and Receiving of Integers across a Stream-mode 
+Socket 
+ 
+In this example program, we illustrate the sending and receiving of integers across a stream
+mode socket. The client program sends two integers using the PrintStream object; the server 
+program receives them, computes and prints their sum. 
+#intServer
+import socket
+
+HOST = "0.0.0.0"
+PORT = 6000
+
+server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server.bind((HOST, PORT))
+server.listen(1)
+
+print("Server waiting for client...")
+
+client_socket, client_addr = server.accept()
+print("Connected:", client_addr)
+
+data = client_socket.recv(1024).decode()
+a, b = map(int, data.split())
+
+print("Received:", a, b)
+print("Sum =", a + b)
+
+client_socket.close()
+server.close()
+#intClient
+import socket
+
+server_ip = "127.0.0.1"
+PORT = 6000
+
+a = 12
+b = 30
+
+msg = f"{a} {b}"
+
+client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+client.connect((server_ip, PORT))
+
+client.sendall(msg.encode())
+client.close()
+
+4.6.1 Iterative Server 
+As illustrated in Section 4.3, an iterative server is a server program that handles one client at a 
+time. If one or more client connection requests reach the server while the latter is in 
+communication with a client, these requests have to wait for the existing communication to be 
+completed. The pending client connection requests are handled on a First-in-First-Serve basis. 
+However, such a design is not efficient. Clients may have to sometime wait for excessive amount 
+of time for the requests ahead of theirs in the waiting queue to be processed. When the client 
+requests differ in the amount of time they take to be handled by the server, it would then lead to a 
+situation where a client with a lower execution time for its request at the server may have to wait 
+for the requests (ahead in the queue) that have a relatively longer execution time to be completed 
+first. The code in Figure 25 illustrates one such example of an iterative server that has to add 
+integers from 1 to a “count” value (i.e., 1+2+…+count) sent by a client program (Figure 24) and 
+return the sum of these integers to the requesting client. In order to simulate the effect of time
+consuming client requests, we make the server program to sleep for 200 milliseconds after 
+performing each addition. As iterative servers are single-threaded programs, the whole program 
+sleeps when we invoke the sleep( ) static function of the Thread class. The execution screenshots 
+illustrated in Figure 26 show that a client with a request to add integers from 1 to 5 will have to 
+wait for 19500 milliseconds (i.e., 19.5 seconds) as the client’s request reached the server while 
+the latter was processing a request from another client to add integers from 1 to 100, which takes 
+20031 milliseconds (i.e., 20.031 seconds). 
+#iterativeClient
+import socket
+
+server_ip = "127.0.0.1"
+PORT = 4000
+
+count = int(input("Enter count: "))
+msg = str(count).encode()
+
+client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+client.connect((server_ip, PORT))
+
+client.sendall(msg)
+
+result = client.recv(1024).decode()
+print("Sum from server:", result)
+
+client.close()
+#iterativeServer
+import socket
+import time
+
+HOST = "0.0.0.0"
+PORT = 4000
+
+server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server.bind((HOST, PORT))
+server.listen(5)
+
+print("Iterative Server running... (Press Ctrl+C to stop)")
+
+try:
+    while True:
+        client_socket, client_addr = server.accept()
+        print(f"Connected to: {client_addr}")
+
+        count = int(client_socket.recv(1024).decode())
+
+        s = 0
+        for i in range(1, count + 1):
+            s += i
+            time.sleep(0.2)   # 200 ms sleep
+
+        client_socket.sendall(str(s).encode())
+        client_socket.close()
+
+        print("Handled client. Waiting for next...")
+
+except KeyboardInterrupt:
+    print("\nServer stopped.")
+    server.close()
+
+
+4.6.2 Concurrent Server 
+An alternative design is the idea of using a concurrent server, especially to process client 
+requests with variable service time. When a client request is received, the server process spawns 
+a separate thread, which is exclusively meant to handle the particular client. So, if a program has 
+to sleep after each addition, it would be the particular thread (doing the addition) that will sleep 
+and not the whole server process, which was the case with an iterative server. While a thread of a 
+process is sleeping, the operating system could schedule the other threads of this process to run. 
+With such a design, the waiting time of client requests, especially for those with a relatively 
+shorter processing time, could be significantly reduced. Note that the code for the client program 
+is independent of the design choice for the server. In other words, one should be able to use the 
+same client program with either an iterative server or a concurrent server.  
+
+#concurrentServer
+import socket
+import time
+import threading
+
+HOST = "0.0.0.0"
+PORT = 4000
+
+def handle_client(client_socket, client_addr):
+    print(f"[Thread] Handling client: {client_addr}")
+
+    count = int(client_socket.recv(1024).decode())
+
+    s = 0
+    for i in range(1, count + 1):
+        s += i
+        time.sleep(0.2)  # Simulate heavy work
+
+    client_socket.sendall(str(s).encode())
+    client_socket.close()
+
+    print(f"[Thread] Finished client: {client_addr}")
+
+
+server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server.bind((HOST, PORT))
+server.listen(5)
+
+print("Concurrent Server running...")
+
+try:
+    while True:
+        client_socket, client_addr = server.accept()
+        t = threading.Thread(target=handle_client, args=(client_socket, client_addr))
+        t.start()
+
+except KeyboardInterrupt:
+    print("\nServer stopped.")
+    server.close()
+
+#iterativeClient
+import socket
+
+server_ip = "127.0.0.1"
+PORT = 4000
+
+count = int(input("Enter count: "))
+msg = str(count).encode()
+
+client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+client.connect((server_ip, PORT))
+
+client.sendall(msg)
+
+result = client.recv(1024).decode()
+print("Sum from server:", result)
+
+client.close()
+
+
+
+5.1 Example Program to Illustrate an Application in which a Message Sent by a Process 
+Reaches all the Processes Constituting the Multicast Group 
+In this example, we illustrate an application wherein there are two types of processes: (i) 
+multicast sender – that can only send a message to a multicast group and (ii) multicast receiver – 
+that can only receive a message sent to the multicast group. Similar to the case of connection
+oriented and connectionless sockets, the multicast receiver (Figure 30) should be started first and 
+should be ready to receive messages sent to the port number to which the multicast socket is 
+bound to. We then start the multicast sender (Figure 29).  
+To keep it simple, the multicast sender program stops after sending one message to the 
+multicast group and the multicast receiver program stops after receiving one message for the 
+group. The maximum size of the message that can be received in this example is 100 bytes. 
+
+#multicastReceiver
+import socket
+import struct
+
+MCAST_GRP = "224.1.1.1"
+PORT = 5007
+
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+sock.bind(("", PORT))
+
+mreq = struct.pack("4sl", socket.inet_aton(MCAST_GRP), socket.INADDR_ANY)
+sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+
+print("Receiver ready... waiting for message...")
+
+data, addr = sock.recvfrom(1024)
+print("Received:", data.decode(), "from", addr)
+
+sock.close()
+
+#multicastSender
+
+import socket
+import struct
+
+MCAST_GRP = "224.1.1.1"
+PORT = 5007
+
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+ttl = struct.pack("b", 1)  # Limit to LAN
+sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_TTL, ttl)
+
+msg = "Hello Multicast Group!".encode()
+
+sock.sendto(msg, (MCAST_GRP, PORT))
+print("Message sent to multicast group.")
+sock.close()
+
+
+5.2 Example Program to Illustrate an Application in which each Process of the Multicast 
+Group Sends a Message that is Received by all the Processes Constituting the Group 
+In this example, each process should be both a multicast sender as well as a receiver such that the 
+process can send only one message (to the multicast group); but, should be able to receive 
+several messages. Since a process can send only one message, the number of messages received 
+by a process would equal the number of processes that are part of the multicast group. Since a 
+process should have both the sending and receiving functionality built-in to its code, we 
+implement the relatively simpler sending module in the main( ) function; whereas, the receiving 
+functionality is implemented as a thread (readThread class in Figure 32). The readThread object 
+is spawned and starts to run before the sending module begins its execution. In order to facilitate 
+this, the code in Figure 32 will require all the processes to be started first. After all the processes 
+have begun to run (i.e., the readThread has been spawned), we then press the Enter-key in each 
+process command window. This will trigger the sending of a message by each process. The 
+readThread displays the received message (refer to Figure 33). 
+
+#multicast_group
+import socket
+import struct
+import threading
+
+MCAST_GRP = "224.1.1.1"
+PORT = 6000
+BUFFER = 1024
+
+
+def receive_messages(sock):
+    """Thread function to continuously receive multicast messages."""
+    while True:
+        data, addr = sock.recvfrom(BUFFER)
+        print(f"\n[Received from {addr}]  {data.decode()}")
+
+
+def main():
+    # Create UDP socket
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+
+    # Allow multiple processes on same machine to bind the same port
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
+    # Bind to multicast port
+    sock.bind(("", PORT))
+
+    # Join multicast group
+    mreq = struct.pack("4sl", socket.inet_aton(MCAST_GRP), socket.INADDR_ANY)
+    sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+
+    # Start receiving thread BEFORE sending
+    recv_thread = threading.Thread(target=receive_messages, args=(sock,), daemon=True)
+    recv_thread.start()
+
+    print("\nProcess is ready and joined the multicast group.")
+    print("Press ENTER to send your message to the group.\n")
+    
+    input()  # Wait until all other processes are started
+
+    # Sending part
+    message = input("Enter your message: ")
+    sock.sendto(message.encode(), (MCAST_GRP, PORT))
+
+    print("\nMessage sent successfully! Now receiving messages...\n")
+
+    # Keep the process alive to receive all messages
+    try:
+        while True:
+            pass
+    except KeyboardInterrupt:
+        print("\nProcess exiting...")
+
+
+if __name__ == "__main__":
+    main()
+
+
+
+
+1. Implement a simple file transfer protocol (FTP) using connection-oriented and connectionless 
+sockets. The connection-oriented FTP works as follows: At the client side, the file to be 
+transferred is divided into units of 100 bytes (and may be less than 100 bytes for the last unit 
+depending on the size of the file). The client transfers each unit of the file to the server and 
+expects an acknowledgment from the server. Only after receiving an acknowledgment from 
+the server, the client transmits the next unit of the file. If the acknowledgment is not received 
+within a timeout period (choose your own value depending on your network delay), the client 
+retransmits the unit. The above process is repeated until all the contents of the file are 
+transferred. The connectionless FTP works simply as follows: The file is broken down into 
+lines and the client sends one line at a time as a datagram packet to the server. There is no 
+acknowledgment required from the server side. 
+# tcp_ftp_server.py
+import socket
+import os
+
+HOST = "0.0.0.0"
+PORT = 45000
+BUFFER_UNIT = 100  # bytes
+
+def handle_client(conn, addr):
+    print(f"[TCP-FTP] Connection from {addr}")
+    # First receive filename length and filename (so client tells name)
+    # protocol: client sends filename length (4 bytes) then filename utf-8
+    try:
+        raw = conn.recv(4)
+        if not raw:
+            conn.close()
+            return
+        name_len = int.from_bytes(raw, 'big')
+        filename = conn.recv(name_len).decode()
+        outname = "received_" + os.path.basename(filename)
+        print(f"[TCP-FTP] Receiving file: {filename} -> {outname}")
+        with open(outname, "wb") as f:
+            while True:
+                data = conn.recv(BUFFER_UNIT)
+                if not data:
+                    break
+                # a special terminator: client sends b'__END__' (ascii) as last small packet
+                if data == b'__END__':
+                    break
+                f.write(data)
+                # send ACK
+                conn.sendall(b"ACK")
+        print(f"[TCP-FTP] File saved: {outname}")
+    except Exception as e:
+        print("Error:", e)
+    finally:
+        conn.close()
+
+def main():
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind((HOST, PORT))
+    s.listen(5)
+    print(f"[TCP-FTP] Listening on {HOST}:{PORT}")
+    try:
+        while True:
+            conn, addr = s.accept()
+            handle_client(conn, addr)
+    except KeyboardInterrupt:
+        print("\n[TCP-FTP] Shutting down server.")
+    finally:
+        s.close()
+
+if __name__ == "__main__":
+    main()
+
+# tcp_ftp_client.py
+import socket
+import sys
+import time
+import os
+
+HOST = "127.0.0.1"
+PORT = 45000
+UNIT = 100
+TIMEOUT = 2.0
+MAX_RETRIES = 5
+
+def send_file(path):
+    if not os.path.exists(path):
+        print("File not found:", path); return
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.connect((HOST, PORT))
+    # send filename (length + name)
+    name = os.path.basename(path).encode()
+    s.sendall(len(name).to_bytes(4, 'big'))
+    s.sendall(name)
+
+    with open(path, "rb") as f:
+        while True:
+            chunk = f.read(UNIT)
+            if not chunk:
+                break
+            retries = 0
+            while retries < MAX_RETRIES:
+                s.sendall(chunk)
+                s.settimeout(TIMEOUT)
+                try:
+                    ack = s.recv(16)
+                    if ack == b"ACK":
+                        break
+                except socket.timeout:
+                    retries += 1
+                    print(f"[TCP-FTP] Timeout, retransmitting chunk (retry {retries})")
+            if retries >= MAX_RETRIES:
+                print("[TCP-FTP] Max retries reached. Aborting.")
+                s.close()
+                return
+    # send termination marker
+    s.sendall(b'__END__')
+    print("[TCP-FTP] Transfer complete.")
+    s.close()
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: python tcp_ftp_client.py <filename>")
+    else:
+        send_file(sys.argv[1])
+
+
+#udp_ftp_server.py
+# udp_ftp_server.py
+import socket
+
+HOST = "0.0.0.0"
+PORT = 45010
+BUFFER = 4096
+
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+sock.bind((HOST, PORT))
+print(f"[UDP-FTP] Listening on {HOST}:{PORT}")
+
+# protocol: client first sends filename as a single datagram
+data, addr = sock.recvfrom(BUFFER)
+filename = data.decode()
+outname = "udp_received_" + filename
+print(f"[UDP-FTP] Receiving file '{filename}' from {addr} -> saving as {outname}")
+
+with open(outname, "wb") as f:
+    while True:
+        data, addr = sock.recvfrom(BUFFER)
+        # client will send a special line "__END__" to indicate finish
+        if data == b"__END__":
+            break
+        # each datagram contains a line (text). Write line and a newline.
+        f.write(data)
+        # no ack sent (connectionless)
+print("[UDP-FTP] File saved:", outname)
+sock.close()
+
+# udp_ftp_client.py
+import socket
+import sys
+
+HOST = "127.0.0.1"
+PORT = 45010
+
+def send_file_lines(path):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    filename = path.split("/")[-1]
+    sock.sendto(filename.encode(), (HOST, PORT))
+    with open(path, "rb") as f:
+        for line in f:
+            # send raw line as datagram
+            sock.sendto(line.rstrip(b'\n'), (HOST, PORT))
+    sock.sendto(b"__END__", (HOST, PORT))
+    print("[UDP-FTP] Sent all lines.")
+    sock.close()
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: python udp_ftp_client.py <filename>")
+    else:
+        send_file_lines(sys.argv[1])
+
+
+2. Develop a concurrent file server that spawns several threads, one for each client requesting a 
+specific file. The client program sends the name of the file to be downloaded to the server. 
+The server creates the thread by passing the name of the file as the argument for the thread 
+constructor. From then on, the server thread is responsible for transferring the contents of the 
+requested file. Use connection-oriented sockets (let the transfer size be at most 1000 bytes per 
+flush operation). After a flush operation, the server thread sleeps for 200 milliseconds.
+
+#concurrent_file_server.py
+# concurrent_file_server.py
+import socket
+import threading
+import time
+import os
+
+HOST = "0.0.0.0"
+PORT = 45100
+CHUNK = 1000
+SLEEP_AFTER = 0.2
+
+def handle_client(conn, addr):
+    print(f"[Concurrent] Connected: {addr}")
+    try:
+        # receive filename length (4 bytes) then filename
+        raw = conn.recv(4)
+        if not raw:
+            return
+        n = int.from_bytes(raw, 'big')
+        filename = conn.recv(n).decode()
+        print(f"[Concurrent] Client requested file: {filename}")
+        if not os.path.isfile(filename):
+            conn.sendall(b"ERR:FILE_NOT_FOUND")
+            return
+        conn.sendall(b"OK")
+        with open(filename, "rb") as f:
+            while True:
+                chunk = f.read(CHUNK)
+                if not chunk:
+                    break
+                conn.sendall(chunk)
+                # simulate flush+wait
+                time.sleep(SLEEP_AFTER)
+        print(f"[Concurrent] Done sending {filename} to {addr}")
+    except Exception as e:
+        print("Error:", e)
+    finally:
+        conn.close()
+
+def main():
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind((HOST, PORT))
+    s.listen(10)
+    print(f"[Concurrent] Listening on {HOST}:{PORT}")
+    try:
+        while True:
+            conn, addr = s.accept()
+            t = threading.Thread(target=handle_client, args=(conn, addr), daemon=True)
+            t.start()
+    except KeyboardInterrupt:
+        print("\n[Concurrent] Shutting down.")
+    finally:
+        s.close()
+
+if __name__ == "__main__":
+    main()
+
+#concurrent_file_client.py
+# concurrent_file_client.py
+import socket
+import sys
+
+HOST = "127.0.0.1"
+PORT = 45100
+
+def request_file(name):
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.connect((HOST, PORT))
+    s.sendall(len(name.encode()).to_bytes(4, 'big'))
+    s.sendall(name.encode())
+    status = s.recv(16)
+    if status.startswith(b"ERR"):
+        print("Server returned error:", status.decode())
+        s.close(); return
+    out = "download_" + name
+    with open(out, "wb") as f:
+        while True:
+            data = s.recv(4096)
+            if not data:
+                break
+            f.write(data)
+    print("Saved as", out)
+    s.close()
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: python concurrent_file_client.py <filename>")
+    else:
+        request_file(sys.argv[1])
+
+ 
+3. Develop a “Remote Calculator” application that works as follows: The client program inputs 
+two integers and an arithmetic operation (‘*’,’/’,’%’,’+’,’-‘) from the user and sends these 
+three values to the server side. The server does the binary operation on the two integers and 
+sends backs the result of the operation to the client. The client displays the result to the user.
+ 
+# remote_calc_server.py
+import socket
+
+HOST = "0.0.0.0"
+PORT = 45200
+
+def handle(conn, addr):
+    print(f"[Calc] Connected {addr}")
+    try:
+        data = conn.recv(1024).decode().strip()
+        # expected "12 + 5" or "12 + 5\n"
+        tokens = data.split()
+        if len(tokens) != 3:
+            conn.sendall(b"ERR:Bad format. Use: <int> <op> <int>")
+            return
+        a = int(tokens[0]); op = tokens[1]; b = int(tokens[2])
+        if op == '+': res = a + b
+        elif op == '-': res = a - b
+        elif op == '*': res = a * b
+        elif op == '/':
+            if b == 0: raise ZeroDivisionError
+            res = a // b
+        elif op == '%':
+            res = a % b
+        else:
+            conn.sendall(b"ERR:Unknown operator")
+            return
+        conn.sendall(str(res).encode())
+    except ZeroDivisionError:
+        conn.sendall(b"ERR:Division by zero")
+    except Exception as e:
+        conn.sendall(f"ERR:{e}".encode())
+    finally:
+        conn.close()
+
+def main():
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind((HOST, PORT))
+    s.listen(5)
+    print(f"[Calc] Listening on {HOST}:{PORT}")
+    try:
+        while True:
+            conn, addr = s.accept()
+            handle(conn, addr)
+    except KeyboardInterrupt:
+        print("\n[Calc] Shutting down.")
+    finally:
+        s.close()
+
+if __name__ == "__main__":
+    main()
+
+# remote_calc_client.py
+import socket
+import sys
+
+HOST = "127.0.0.1"
+PORT = 45200
+
+def calc(a, op, b):
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.connect((HOST, PORT))
+    s.sendall(f"{a} {op} {b}".encode())
+    res = s.recv(1024).decode()
+    print("Server response:", res)
+    s.close()
+
+if __name__ == "__main__":
+    if len(sys.argv) == 4:
+        calc(sys.argv[1], sys.argv[2], sys.argv[3])
+    else:
+        a = input("Enter first integer: ")
+        op = input("Enter operator (* / % + -): ")
+        b = input("Enter second integer: ")
+        calc(a, op, b)
+
+
+4. Develop a streaming client and server application using connectionless sockets that works as 
+follows: The streaming client contacts the streaming server requesting a multi-media file 
+(could be an audio or video file) to be sent. The server then reads the contents of the 
+requested multi-media file in size randomly distributed between 1000 and 2000 bytes and 
+sends the contents read to the client as a datagram packet. The last datagram packet that will 
+be transmitted could be of size less than 1000 bytes, if required. The client reads the bytes, 
+datagram packets, sent from the server. As soon as a reasonable number of bytes are received 
+at the client side, the user working at the client side should be able to launch a media player 
+and view/hear the portions of the received multi-media file while the downloading is in 
+progress. 
+# udp_streaming_server.py
+import socket
+import random
+import time
+import os
+
+MCAST = False
+HOST = "0.0.0.0"
+PORT = 45300   # listen for requests
+BUFFER_MIN = 1000
+BUFFER_MAX = 2000
+
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+sock.bind((HOST, PORT))
+print("[Streamer] Ready for stream requests on", (HOST, PORT))
+
+while True:
+    data, addr = sock.recvfrom(1024)
+    filename = data.decode().strip()
+    print(f"[Streamer] Request for '{filename}' from {addr}")
+    if not os.path.isfile(filename):
+        sock.sendto(b"ERR:FILE_NOT_FOUND", addr)
+        continue
+    # send the file as datagrams to addr
+    with open(filename, "rb") as f:
+        while True:
+            # choose random size
+            size = random.randint(BUFFER_MIN, BUFFER_MAX)
+            chunk = f.read(size)
+            if not chunk:
+                break
+            sock.sendto(chunk, addr)
+            # small optional delay to avoid flooding
+            time.sleep(0.01)
+        # send a short terminator packet
+        sock.sendto(b"__STREAM_END__", addr)
+    print("[Streamer] Finished streaming to", addr)
+
+# udp_streaming_client.py
+import socket
+import sys
+import time
+
+SERVER = ("127.0.0.1", 45300)
+BUFFER = 65536
+START_PLAY_THRESHOLD = 50_000  # bytes after which user can start player
+
+def request_and_receive(filename, outname=None):
+    if outname is None:
+        outname = "streamed_" + filename
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    # bind to a local port so server can reply
+    s.bind(("0.0.0.0", 0))
+    local_addr = s.getsockname()
+    print("[Client] Local addr:", local_addr)
+    # request
+    s.sendto(filename.encode(), SERVER)
+    print("[Client] Requested", filename)
+    received = 0
+    started_player_hint = False
+    with open(outname, "wb") as f:
+        while True:
+            data, addr = s.recvfrom(BUFFER)
+            if data == b"ERR:FILE_NOT_FOUND":
+                print("[Client] Server error: file not found")
+                break
+            if data == b"__STREAM_END__":
+                print("[Client] Stream ended by server.")
+                break
+            f.write(data)
+            received += len(data)
+            # periodically notify
+            if not started_player_hint and received >= START_PLAY_THRESHOLD:
+                print(f"[Client] You have {received} bytes. You can start the media player to play '{outname}' while downloading continues.")
+                # Example instruction for CLI: ffplay streamed_file (uncomment if you want the client to auto-launch ffplay)
+                # import subprocess; subprocess.Popen(['ffplay', '-nodisp', '-autoexit', outname])
+                started_player_hint = True
+    print("[Client] Total bytes received:", received)
+    s.close()
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: python udp_streaming_client.py <filename_on_server>")
+    else:
+        request_and_receive(sys.argv[1])
+
+
+5. Develop a simple chatting application using (i) Connection-oriented and (ii) Connectionless 
+sockets. In each case, when the user presses the “Enter” key, whatever characters have been 
+typed by the user until then are transferred to the other end. You can also assume that for 
+every message entered from one end, a reply must come from the other end, before another 
+message could be sent. In other words, more than one message cannot be sent from a side 
+before receiving a response from the other side. For connectionless communication, assume 
+the maximum number of characters that can be transferred in a message to be 1000. The chat 
+will be stopped by pressing Ctrl+C on both sides. 
+
+# tcp_chat_server.py
+import socket
+
+HOST = "0.0.0.0"
+PORT = 46000
+
+def run():
+    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    srv.bind((HOST, PORT))
+    srv.listen(1)
+    print(f"[TCP-Server] Listening on {HOST}:{PORT}")
+    conn, addr = srv.accept()
+    print("[TCP-Server] Connected by", addr)
+    try:
+        while True:
+            # receive message from client
+            data = conn.recv(4096)
+            if not data:
+                print("[TCP-Server] Client disconnected.")
+                break
+            msg = data.decode()
+            print(f"[Client] {msg}")
+            # server operator types reply
+            reply = input("Reply> ")
+            conn.sendall(reply.encode())
+    except KeyboardInterrupt:
+        print("\n[TCP-Server] Shutting down.")
+    finally:
+        conn.close()
+        srv.close()
+
+if __name__ == "__main__":
+    run()
+
+# tcp_chat_client.py
+import socket
+
+HOST = "127.0.0.1"  # server IP
+PORT = 46000
+
+def run():
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.connect((HOST, PORT))
+    print("[TCP-Client] Connected to server.")
+    try:
+        while True:
+            msg = input("You> ")
+            s.sendall(msg.encode())
+            # wait for server reply before sending next
+            data = s.recv(4096)
+            if not data:
+                print("[TCP-Client] Server closed.")
+                break
+            print(f"[Server] {data.decode()}")
+    except KeyboardInterrupt:
+        print("\n[TCP-Client] Exiting.")
+    finally:
+        s.close()
+
+if __name__ == "__main__":
+    run()
+
+
+
+# udp_chat_peer.py
+import socket
+import threading
+
+MAX_MSG = 1000
+
+def recv_loop(sock, event, last_msg_holder):
+    while True:
+        data, addr = sock.recvfrom(65536)
+        msg = data.decode()
+        print(f"\n[Remote {addr}] {msg}")
+        last_msg_holder['msg'] = msg
+        # signal receiver event if waiting for reply
+        event.set()
+
+def run(local_port, remote_ip, remote_port):
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.bind(("0.0.0.0", local_port))
+    print(f"[UDP-PEER] Bound local port {local_port}. Will send to {remote_ip}:{remote_port}")
+    # event used to indicate reply arrival
+    reply_event = threading.Event()
+    last_msg = {'msg': None}
+    t = threading.Thread(target=recv_loop, args=(sock, reply_event, last_msg), daemon=True)
+    t.start()
+
+    try:
+        while True:
+            text = input("You> ")
+            if len(text) > MAX_MSG:
+                print(f"[LOCAL] Max {MAX_MSG} chars allowed.")
+                continue
+            # send message
+            sock.sendto(text.encode(), (remote_ip, remote_port))
+            # wait for a reply before sending again
+            print("[LOCAL] Message sent; waiting for reply...")
+            reply_event.clear()
+            reply_event.wait()  # wait until recv thread sets event
+            # reply arrived and printed by recv_loop
+    except KeyboardInterrupt:
+        print("\n[UDP-PEER] Exiting.")
+    finally:
+        sock.close()
+
+if __name__ == "__main__":
+    import sys
+    if len(sys.argv) != 4:
+        print("Usage: python udp_chat_peer.py <local_port> <remote_ip> <remote_port>")
+        print("Example: python udp_chat_peer.py 47001 127.0.0.1 47002")
+    else:
+        run(int(sys.argv[1]), sys.argv[2], int(sys.argv[3]))
+
+
+6. Extend the single client – single server chatting application developed in Q5 using 
+connection-oriented sockets to a multiple client – single server chatting application. The 
+single server should be able to chat simultaneously with multiple clients. In order to do this, 
+you will have to implement the server program using threads. Once a client program contacts 
+a server, the server process spawns a thread that will handle the client. The communication 
+between a client and its server thread will be like a single client-single server chatting 
+application. 
+
+# tcp_multi_chat_server.py
+import socket
+import threading
+
+HOST = "0.0.0.0"
+PORT = 46100
+
+def client_thread(conn, addr):
+    print(f"[Server] Client connected: {addr}")
+    try:
+        while True:
+            data = conn.recv(4096)
+            if not data:
+                print(f"[Server] {addr} disconnected")
+                break
+            print(f"\n[Client {addr}] {data.decode()}")
+            # prompt for reply (thread-local)
+            reply = input(f"Reply to {addr}> ")
+            conn.sendall(reply.encode())
+    except Exception as e:
+        print(f"[Server] Error with {addr}: {e}")
+    finally:
+        conn.close()
+
+def run():
+    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    srv.bind((HOST, PORT))
+    srv.listen(10)
+    print(f"[Server] Listening on {HOST}:{PORT}")
+    try:
+        while True:
+            conn, addr = srv.accept()
+            t = threading.Thread(target=client_thread, args=(conn, addr), daemon=True)
+            t.start()
+    except KeyboardInterrupt:
+        print("\n[Server] Shutting down.")
+    finally:
+        srv.close()
+
+if __name__ == "__main__":
+    run()
+# tcp_chat_client.py
+import socket
+
+HOST = "127.0.0.1"  # server IP
+PORT = 46000
+
+def run():
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.connect((HOST, PORT))
+    print("[TCP-Client] Connected to server.")
+    try:
+        while True:
+            msg = input("You> ")
+            s.sendall(msg.encode())
+            # wait for server reply before sending next
+            data = s.recv(4096)
+            if not data:
+                print("[TCP-Client] Server closed.")
+                break
+            print(f"[Server] {data.decode()}")
+    except KeyboardInterrupt:
+        print("\n[TCP-Client] Exiting.")
+    finally:
+        s.close()
+
+if __name__ == "__main__":
+    run()
+
+
+7. Develop a multicast chatting tool that will be used to communicate among a group of 
+processes. Each process should be able to send and receive any number of messages. The 
+chat tool should have the following functionalities: 
+1) Get the message from the user and send it to all the other processes belonging to 
+the group. A process can receive a copy of the message. 
+2) Read the messages sent by any other process and display the message to the user. 
+
+# multicast_chat.py
+import socket
+import struct
+import threading
+
+MCAST_GRP = "224.1.1.1"
+PORT = 6000
+BUFFER = 2048
+
+def receiver(sock):
+    while True:
+        data, addr = sock.recvfrom(BUFFER)
+        print(f"\n[{addr}] {data.decode()}")
+
+def main():
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    # on some systems need SO_REUSEPORT as well (not set here)
+    sock.bind(('', PORT))
+    mreq = struct.pack("4sl", socket.inet_aton(MCAST_GRP), socket.INADDR_ANY)
+    sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+
+    # Enable loopback so sender receives its own messages (optional)
+    sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 1)
+
+    t = threading.Thread(target=receiver, args=(sock,), daemon=True)
+    t.start()
+
+    print("Joined multicast group. Type messages and press Enter to send. Ctrl+C to exit.")
+    try:
+        while True:
+            msg = input()
+            if not msg:
+                continue
+            sock.sendto(msg.encode(), (MCAST_GRP, PORT))
+    except KeyboardInterrupt:
+        print("\nExiting.")
+    finally:
+        sock.close()
+
+if __name__ == "__main__":
+    main()
+
+
+8. Develop an election vote casting application as follows: There are two candidates A and B 
+contesting an election. There are five electorates (processes) and each electorate can cast their 
+vote only once and for only one of the two candidates (A or B). The vote cast by an electorate 
+is a character ‘A’ or ‘B’, sent as a multicast message to all the other electorates. The winner 
+is the candidate who gets the maximum number of votes. After casting the vote and also 
+receiving the vote messages from all other electorates, each electorate should be able to 
+independently determine the winner and display it.
+
+# multicast_election.py
+import socket
+import struct
+import threading
+import time
+
+MCAST_GRP = "224.1.1.1"
+PORT = 6010
+TOTAL_ELECTORATES = 5  # change if you want different number
+BUFFER = 1024
+
+received_votes = []
+lock = threading.Lock()
+
+def receiver(sock):
+    while True:
+        data, addr = sock.recvfrom(BUFFER)
+        try:
+            vote_str = data.decode().strip()
+        except:
+            continue
+        if len(vote_str) == 0:
+            continue
+        with lock:
+            # avoid double counting same (addr, vote) pairs if duplicated
+            received_votes.append((addr, vote_str))
+            print(f"[Received from {addr}] Vote: {vote_str}")
+        # if enough votes received, break loop in main thread will tally
+
+def main():
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.bind(('', PORT))
+    mreq = struct.pack("4sl", socket.inet_aton(MCAST_GRP), socket.INADDR_ANY)
+    sock.setsockopt(socket.IPPROTO_IP, socket.IP_ADD_MEMBERSHIP, mreq)
+    sock.setsockopt(socket.IPPROTO_IP, socket.IP_MULTICAST_LOOP, 1)
+
+    t = threading.Thread(target=receiver, args=(sock,), daemon=True)
+    t.start()
+
+    print(f"Started. Total electorates expected: {TOTAL_ELECTORATES}")
+    vote = None
+    while vote not in ('A', 'B'):
+        vote = input("Enter your vote (A or B): ").strip().upper()
+    input("Press ENTER to cast your vote now (ensure all processes started)...")
+
+    # send vote
+    sock.sendto(vote.encode(), (MCAST_GRP, PORT))
+    print("[Sent] Vote:", vote)
+
+    # wait until we have collected TOTAL_ELECTORATES votes
+    print(f"Waiting to receive {TOTAL_ELECTORATES} votes (including own)...")
+    while True:
+        with lock:
+            # deduplicate by (addr, vote) using unique addr (addr[0], addr[1])
+            unique_by_addr = {}
+            for addr, v in received_votes:
+                unique_by_addr[addr] = v
+            count = len(unique_by_addr)
+            if count >= TOTAL_ELECTORATES:
+                votes = list(unique_by_addr.values())
+                break
+        time.sleep(0.2)
+
+    # tally
+    a_votes = votes.count('A')
+    b_votes = votes.count('B')
+    print("\nVotes tally:")
+    print("A =", a_votes, "B =", b_votes)
+    if a_votes > b_votes:
+        print("Winner: A")
+    elif b_votes > a_votes:
+        print("Winner: B")
+    else:
+        print("Result: Tie")
+
+    sock.close()
+
+if __name__ == "__main__":
+    main()
